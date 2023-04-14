@@ -10,7 +10,7 @@ def ListeningLoop(conn):
     buffer = conn.recv(1024)
     buffer = int(buffer.decode("utf-8"))
     alice.set_private_key(buffer)
-    print(alice.shared_key)
+    print(alice.shared_key, end = "\n\n")
     while True:
         p.iv_bytes = conn.recv(16)
         p.encrypted_message = conn.recv(1024)
@@ -19,28 +19,57 @@ def ListeningLoop(conn):
         print("From: Bob - ", end = " ")
         print(p.string_message)
 
-
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sendport:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as receiveport:
-        sendport.setblocking(1)
-        receiveport.setblocking(1)
-        sendport.bind((HOST, ALICESEND))
-        sendport.connect((HOST,BOBLISTEN))
-        buffer = ""
+if __name__ == "__main__":
+    mode = ""
+    while (mode != "Y" and mode != "N"):
+        mode = input("Would you like to run in evesdropping mode? (Y/N)")
+    if mode == "N":
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sendport:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as receiveport:
+                sendport.setblocking(1)
+                receiveport.setblocking(1)
+                sendport.bind((HOST, ALICESEND))
+                sendport.connect((HOST,BOBLISTEN))
+                buffer = ""
+                
+                receiveport.bind((HOST,ALICELISTEN))
+                receiveport.listen()
+                conn, addr = receiveport.accept()
+                
+                y = threading.Thread(target=ListeningLoop, args=(conn,))
+                y.start()
+                buffer = str(alice.public_key)
+                sendport.send(buffer.encode("utf-8"))
+                p = Packet()
+                while True:
+                    a = input("Alice:")
+                    p = alice.encrypt_message(a)
+                    sendport.send(p.iv_bytes)
+                    sendport.send(p.encrypted_message)
+                    print(p.encrypted_message)
+    else:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sendport:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as receiveport:
+                sendport.setblocking(1)
+                receiveport.setblocking(1)
+                sendport.bind((HOST, ALICESEND))
+                sendport.connect((HOST,ALICEtoEVEPORT))
+                buffer = ""
+                
+                receiveport.bind((HOST,ALICELISTEN))
+                receiveport.listen()
+                conn, addr = receiveport.accept()
+                
+                y = threading.Thread(target=ListeningLoop, args=(conn,))
+                y.start()
+                buffer = str(alice.public_key)
+                sendport.send(buffer.encode("utf-8"))
+                p = Packet()
+                while True:
+                    a = input("Alice:")
+                    p = alice.encrypt_message(a)
+                    sendport.send(p.iv_bytes)
+                    sendport.send(p.encrypted_message)
+                    print(p.encrypted_message)
         
-        receiveport.bind((HOST,ALICELISTEN))
-        receiveport.listen()
-        conn, addr = receiveport.accept()
-        
-        y = threading.Thread(target=ListeningLoop, args=(conn,))
-        y.start()
-        buffer = str(alice.public_key)
-        sendport.send(buffer.encode("utf-8"))
-        p = Packet()
-        while True:
-            a = input("Alice:")
-            p = alice.encrypt_message(a)
-            sendport.send(p.iv_bytes)
-            sendport.send(p.encrypted_message)
-            print(p.encrypted_message)
 
