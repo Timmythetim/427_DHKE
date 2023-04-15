@@ -1,22 +1,34 @@
-import socket
+import socket, pickle
 import threading
 from Diffie_Hellman_Merkle import *
 HOST = "127.0.0.1" 
 bob = DiffieHellman()
 bob.set_public_key()
-
+fragments = []
 def ListeningLoop(conn):
     buffer = ""
+    message = []
     p = Packet()
     buffer = conn.recv(1024)
     buffer = buffer.decode("utf-8")
     buffer = int(buffer)
     bob.set_private_key(buffer)
     print(bob.shared_key,end = "\n\n")
+    buffer = ""
     while True:
-        p.iv_bytes = conn.recv(16)
-        p.encrypted_message = conn.recv(1024)
-        p.string_message = bob.decrypt_message(p.encrypted_message, p.iv_bytes)
+        # while 1:
+        #     conn.settimeout(1)
+        #     try:
+        #         buffer = conn.recv(4096)
+        #     except:
+        #         pass
+        #     if not buffer:
+        #         break
+        #     if buffer != "":
+        #         message.append(buffer)
+        buffer = conn.recv(4096)
+        p = pickle.loads(buffer)
+        p.string_message = bob.decrypt_message(p.encrypted_message, p.iv_bytes, p.signature)
         print()
         print("From: Alice - ", end = " ")
         print(p.string_message)
@@ -25,13 +37,33 @@ def ListeningLoop(conn):
         
 if __name__ == "__main__":
     mode = ""
+    message = []
     while (mode != "Y" and mode != "N"):
         mode = input("Would you like to run in evesdropping mode? (Y/N)")
     if mode == "N":
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sendport:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as receiveport:
-                sendport.setblocking(1)
-                receiveport.setblocking(1)
+                SecureChannel = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                SecureChannel.bind((HOST, SECUREBOB))
+                SecureChannel.listen()
+                secConn, addr = SecureChannel.accept()
+                while 1:
+                    secConn.settimeout(.5)
+                    try:
+                        buffer = secConn.recv(4096)
+                    except:
+                        pass
+                    if buffer == b'':
+                        break
+                    if buffer != "":
+                        message.append(buffer)
+                    buffer = b''
+                temp = b''.join(message)
+                message = []
+                bob.OtherVK = pickle.loads(temp)
+                print(bob.OtherVK)
+                temp = pickle.dumps(bob.MYVK)
+                secConn.send(temp)
                 receiveport.bind((HOST,BOBLISTEN))
                 receiveport.listen()
                 conn, addr = receiveport.accept()
@@ -47,14 +79,12 @@ if __name__ == "__main__":
                 while True:
                     a = input("Bob:")
                     p = bob.encrypt_message(a)
-                    sendport.send(p.iv_bytes)
-                    sendport.send(p.encrypted_message)
-                    print(p.encrypted_message)
+                    packet = pickle.dumps(p)
+                    sendport.send(packet)
     else:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sendport:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as receiveport:
-                sendport.setblocking(1)
-                receiveport.setblocking(1)
+                receiveport.settimeout(1)
                 
                 sendport.bind((HOST, BOBSEND))
                 sendport.connect((HOST,BOBtoEVEPORT))
@@ -69,6 +99,5 @@ if __name__ == "__main__":
                 while True:
                     a = input("Bob:")
                     p = bob.encrypt_message(a)
-                    sendport.send(p.iv_bytes)
-                    sendport.send(p.encrypted_message)
-                    print(p.encrypted_message)
+                    packet = pickle.dumps(p)
+                    sendport.send(packet)

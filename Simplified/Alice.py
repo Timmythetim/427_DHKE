@@ -1,36 +1,71 @@
-import socket
+import socket, pickle
 import threading
 from Diffie_Hellman_Merkle import *
 HOST = "127.0.0.1" 
 alice = DiffieHellman()
 alice.set_public_key()
+fragments = []
 
 def ListeningLoop(conn):
     p = Packet()
+    message = []
     buffer = conn.recv(1024)
     buffer = int(buffer.decode("utf-8"))
     alice.set_private_key(buffer)
     print(alice.shared_key, end = "\n\n")
+    buffer = "1"
     while True:
-        p.iv_bytes = conn.recv(16)
-        p.encrypted_message = conn.recv(1024)
-        p.string_message = alice.decrypt_message(p.encrypted_message, p.iv_bytes)
+     # while 1:
+        #     conn.settimeout(1)
+        #     try:
+        #         buffer = conn.recv(4096)
+        #     except:
+        #         pass
+        #     if not buffer:
+        #         break
+        #     if buffer != "":
+        #         message.append(buffer)
+        buffer = conn.recv(4096)
+        p = pickle.loads(buffer)
+        p.string_message = alice.decrypt_message(p.encrypted_message, p.iv_bytes, p.signature)
         print()
         print("From: Bob - ", end = " ")
         print(p.string_message)
 
 if __name__ == "__main__":
     mode = ""
+    message = []
     while (mode != "Y" and mode != "N"):
         mode = input("Would you like to run in evesdropping mode? (Y/N)")
     if mode == "N":
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sendport:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as receiveport:
-                sendport.setblocking(1)
-                receiveport.setblocking(1)
+                SecureChannel = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                SecureChannel.bind((HOST, SECUREALICE))
+                SecureChannel.connect((HOST, SECUREBOB))
+                buffer = pickle.dumps(alice.MYVK)
+                print(len(buffer))
+                SecureChannel.send(buffer)
+                buffer = ""
+                while 1:
+                    SecureChannel.settimeout(.5)
+                    try:
+                        buffer = SecureChannel.recv(4096)
+                    except:
+                        pass
+
+                    if buffer == b'':
+                        break
+                    if buffer != "":
+                        message.append(buffer)
+                    buffer = b''
+                message = b''.join(message)
+                alice.OtherVK = pickle.loads(message)
+                print(alice.OtherVK)
                 sendport.bind((HOST, ALICESEND))
                 sendport.connect((HOST,BOBLISTEN))
                 buffer = ""
+                
                 
                 receiveport.bind((HOST,ALICELISTEN))
                 receiveport.listen()
@@ -44,14 +79,11 @@ if __name__ == "__main__":
                 while True:
                     a = input("Alice:")
                     p = alice.encrypt_message(a)
-                    sendport.send(p.iv_bytes)
-                    sendport.send(p.encrypted_message)
-                    print(p.encrypted_message)
+                    packet = pickle.dumps(p)
+                    sendport.send(packet)
     else:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sendport:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as receiveport:
-                sendport.setblocking(1)
-                receiveport.setblocking(1)
                 sendport.bind((HOST, ALICESEND))
                 sendport.connect((HOST,ALICEtoEVEPORT))
                 buffer = ""
@@ -68,8 +100,8 @@ if __name__ == "__main__":
                 while True:
                     a = input("Alice:")
                     p = alice.encrypt_message(a)
-                    sendport.send(p.iv_bytes)
-                    sendport.send(p.encrypted_message)
-                    print(p.encrypted_message)
+                    packet = pickle.dumps(p)
+                    print(packet)
+                    sendport.send(packet)
         
 
