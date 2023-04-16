@@ -27,13 +27,11 @@ class DiffieHellman:
         cipher_text = cipher.encrypt(message.encode("utf-8"))
         iv = cipher.iv
         signature = self.SK.sign(cipher_text)
-        print(signature)
         return Packet(iv,cipher_text,signature)
     def decrypt_message(self, message, iv, signature):
         decypt_cipher = AES.new(self.shared_key.to_bytes(16, 'big'), AES.MODE_OFB, iv = iv)
         plain_text = decypt_cipher.decrypt(message)
         plain_text = plain_text.decode("utf-8")
-        print(signature)
         try:
             self.OtherVK.verify(signature, message)
         except:

@@ -16,16 +16,6 @@ def ListeningLoop(conn):
     print(bob.shared_key,end = "\n\n")
     buffer = ""
     while True:
-        # while 1:
-        #     conn.settimeout(1)
-        #     try:
-        #         buffer = conn.recv(4096)
-        #     except:
-        #         pass
-        #     if not buffer:
-        #         break
-        #     if buffer != "":
-        #         message.append(buffer)
         buffer = conn.recv(4096)
         p = pickle.loads(buffer)
         p.string_message = bob.decrypt_message(p.encrypted_message, p.iv_bytes, p.signature)
@@ -61,7 +51,6 @@ if __name__ == "__main__":
                 temp = b''.join(message)
                 message = []
                 bob.OtherVK = pickle.loads(temp)
-                print(bob.OtherVK)
                 temp = pickle.dumps(bob.MYVK)
                 secConn.send(temp)
                 receiveport.bind((HOST,BOBLISTEN))
@@ -84,7 +73,26 @@ if __name__ == "__main__":
     else:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sendport:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as receiveport:
-                receiveport.settimeout(1)
+                SecureChannel = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                SecureChannel.bind((HOST, SECUREBOB))
+                SecureChannel.listen()
+                secConn, addr = SecureChannel.accept()
+                while 1:
+                    secConn.settimeout(3)
+                    try:
+                        buffer = secConn.recv(4096)
+                    except:
+                        pass
+                    if buffer == b'':
+                        break
+                    if buffer != "":
+                        message.append(buffer)
+                    buffer = b''
+                temp = b''.join(message)
+                message = []
+                bob.OtherVK = pickle.loads(temp)
+                temp = pickle.dumps(bob.MYVK)
+                secConn.send(temp)
                 
                 sendport.bind((HOST, BOBSEND))
                 sendport.connect((HOST,BOBtoEVEPORT))

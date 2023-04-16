@@ -8,23 +8,12 @@ fragments = []
 
 def ListeningLoop(conn):
     p = Packet()
-    message = []
     buffer = conn.recv(1024)
     buffer = int(buffer.decode("utf-8"))
     alice.set_private_key(buffer)
     print(alice.shared_key, end = "\n\n")
     buffer = "1"
     while True:
-     # while 1:
-        #     conn.settimeout(1)
-        #     try:
-        #         buffer = conn.recv(4096)
-        #     except:
-        #         pass
-        #     if not buffer:
-        #         break
-        #     if buffer != "":
-        #         message.append(buffer)
         buffer = conn.recv(4096)
         p = pickle.loads(buffer)
         p.string_message = alice.decrypt_message(p.encrypted_message, p.iv_bytes, p.signature)
@@ -61,7 +50,6 @@ if __name__ == "__main__":
                     buffer = b''
                 message = b''.join(message)
                 alice.OtherVK = pickle.loads(message)
-                print(alice.OtherVK)
                 sendport.bind((HOST, ALICESEND))
                 sendport.connect((HOST,BOBLISTEN))
                 buffer = ""
@@ -84,6 +72,27 @@ if __name__ == "__main__":
     else:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sendport:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as receiveport:
+                SecureChannel = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                SecureChannel.bind((HOST, SECUREALICE))
+                SecureChannel.connect((HOST, SECUREBOB))
+                buffer = pickle.dumps(alice.MYVK)
+                print(len(buffer))
+                SecureChannel.send(buffer)
+                buffer = ""
+                while 1:
+                    SecureChannel.settimeout(3)
+                    try:
+                        buffer = SecureChannel.recv(4096)
+                    except:
+                        pass
+
+                    if buffer == b'':
+                        break
+                    if buffer != "":
+                        message.append(buffer)
+                    buffer = b''
+                message = b''.join(message)
+                alice.OtherVK = pickle.loads(message)
                 sendport.bind((HOST, ALICESEND))
                 sendport.connect((HOST,ALICEtoEVEPORT))
                 buffer = ""
@@ -101,7 +110,6 @@ if __name__ == "__main__":
                     a = input("Alice:")
                     p = alice.encrypt_message(a)
                     packet = pickle.dumps(p)
-                    print(packet)
                     sendport.send(packet)
         
 
