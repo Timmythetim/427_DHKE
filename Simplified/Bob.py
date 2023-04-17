@@ -13,15 +13,14 @@ def ListeningLoop(conn):
     buffer = buffer.decode("utf-8")
     buffer = int(buffer)
     bob.set_private_key(buffer)
-    print(bob.shared_key,end = "\n\n")
+    print("Shared Key:",bob.shared_key)
     buffer = ""
     while True:
         buffer = conn.recv(4096)
         p = pickle.loads(buffer)
         p.string_message = bob.decrypt_message(p.encrypted_message, p.iv_bytes, p.signature)
         print()
-        print("From: Alice - ", end = " ")
-        print(p.string_message)
+        print("From: Alice - ", p.string_message)
         
         
         

@@ -11,15 +11,14 @@ def ListeningLoop(conn):
     buffer = conn.recv(1024)
     buffer = int(buffer.decode("utf-8"))
     alice.set_private_key(buffer)
-    print(alice.shared_key, end = "\n\n")
-    buffer = "1"
+    print("Shared Key:",alice.shared_key)
+    buffer = ""
     while True:
         buffer = conn.recv(4096)
         p = pickle.loads(buffer)
         p.string_message = alice.decrypt_message(p.encrypted_message, p.iv_bytes, p.signature)
         print()
-        print("From: Bob - ", end = " ")
-        print(p.string_message)
+        print("From: Bob - ", p.string_message)
 
 if __name__ == "__main__":
     mode = ""
@@ -33,7 +32,6 @@ if __name__ == "__main__":
                 SecureChannel.bind((HOST, SECUREALICE))
                 SecureChannel.connect((HOST, SECUREBOB))
                 buffer = pickle.dumps(alice.MYVK)
-                print(len(buffer))
                 SecureChannel.send(buffer)
                 buffer = ""
                 while 1:
@@ -76,7 +74,6 @@ if __name__ == "__main__":
                 SecureChannel.bind((HOST, SECUREALICE))
                 SecureChannel.connect((HOST, SECUREBOB))
                 buffer = pickle.dumps(alice.MYVK)
-                print(len(buffer))
                 SecureChannel.send(buffer)
                 buffer = ""
                 while 1:
