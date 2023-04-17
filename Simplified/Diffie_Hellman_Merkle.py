@@ -6,10 +6,9 @@ from ecdsa import SigningKey
 from Crypto.Cipher import AES
 class DiffieHellman:
     def __init__(self):
-        #Assume we are in Z_199 space
         self.p = 129866728583
         self.g = 12345
-        self.secret_value = random.randint(0,199)
+        self.secret_value = random.randint(0,10000)
         self.public_key = 0
         self.shared_key = 0
         self.SK = SigningKey.generate()
